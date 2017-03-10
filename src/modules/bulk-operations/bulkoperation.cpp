@@ -35,18 +35,41 @@ void BulkOperations::CurrentOperation::getAffectedKeys(std::function<void (QVari
 }
 
 void BulkOperations::CurrentOperation::run(std::function<void (RedisClient::Response, QString)> callback,
-                                           QSharedPointer<RedisClient::Connection>,int)
+                                           QSharedPointer<RedisClient::Connection> targetConnection, int targetDbIndex)
 {
-    QList<QByteArray> rawCmd {"DEL"};
 
-    for (QString k: m_affectedKeys) {
-        rawCmd.append(k.toUtf8());
-    }
+    if (multiConnectionOperation()) {
+        // REFERENCE: https://redis.io/commands/migrate
+        // For compatibility with all redis versions use DUMP/RESTORE
+        if (targetConnection.isNull()) {
+            targetConnection = m_connection;
+        }
 
-    try {
-        m_connection->command(rawCmd, this, callback);
-    } catch (const RedisClient::Connection::Exception& e) {
-        callback(RedisClient::Response(), QString(e.what()));
+        if (m_type == BulkOperations::Manager::Operation::COPY_KEYS) {
+            for (QString k: m_affectedKeys) {
+                QList<QByteArray> rawDump {"DUMP", k.toUtf8()};
+                QList<QByteArray> rawRestore {"RESTORE", k.toUtf8(), "0"};
+
+                m_connection->command(rawDump, this, [&rawRestore, targetConnection, targetDbIndex, this, callback](RedisClient::Response response, QString error) {
+                    rawRestore.append(response.source());
+                    targetConnection->command(rawRestore, this, callback, targetDbIndex);
+                });
+
+
+            }
+        }
+    } else {
+        QList<QByteArray> rawCmd {"DEL"};
+
+        for (QString k: m_affectedKeys) {
+            rawCmd.append(k.toUtf8());
+        }
+
+        try {
+            m_connection->command(rawCmd, this, callback);
+        } catch (const RedisClient::Connection::Exception& e) {
+            callback(RedisClient::Response(), QString(e.what()));
+        }
     }
 }
 
