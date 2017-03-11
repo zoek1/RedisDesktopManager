@@ -36,13 +36,17 @@ public:
 protected:
     void reload();
     void filterKeys(const QRegExp& filter);
-    void resetFilter();    
+    void resetFilter();
+    void migrateKeys(QSharedPointer<DatabaseItem>);
+    static QSharedPointer<DatabaseItem> getDatabaseClipboard();
+    static void setDatabaseClipboard(QSharedPointer<DatabaseItem>);
+
 
 private:
     unsigned short int m_index;
     unsigned int m_keysCount;
     bool m_locked;            
     ParentView* m_parentView;    
+    static QSharedPointer<DatabaseItem> copyInstanceKeys;
 };
-
 }

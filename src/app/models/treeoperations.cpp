@@ -1,6 +1,7 @@
 #include "treeoperations.h"
 #include <QRegExp>
 #include <qredisclient/redisclient.h>
+#include <easylogging++.h>
 
 #include "app/widgets/consoletabs.h"
 #include "app/models/connectionconf.h"
@@ -119,6 +120,21 @@ void TreeOperations::deleteDbKey(ConnectionsTree::KeyItem& key, std::function<vo
     }
 }
 
+void TreeOperations::copyDBKeys(int dbIndex, QSharedPointer<RedisClient::Connection> targetConnection, int targetDbIndex)
+{
+    QRegExp filter(QRegExp("*", Qt::CaseSensitive, QRegExp::Wildcard));
+
+    emit m_manager.requestBulkOperation(m_connection, dbIndex,
+                                        BulkOperations::Manager::Operation::COPY_KEYS,
+                                        filter, [this, dbIndex, filter]() {
+        LOG(INFO) << "Complete from: " << dbIndex;
+        // LOG(INFO) << "Filter: " << filter;
+    });
+    LOG(INFO) << "Exeggution of copy keys";
+
+    emit m_manager.runOperation(targetConnection, targetDbIndex);
+}
+
 void TreeOperations::deleteDbNamespace(ConnectionsTree::NamespaceItem &ns)
 {
     QString pattern = QString("%1:*").arg(QString::fromUtf8(ns.getFullPath()));
@@ -150,4 +166,8 @@ void TreeOperations::flushDb(int dbIndex, std::function<void(const QString&)> ca
     } catch (const RedisClient::Connection::Exception& e) {
         throw ConnectionsTree::Operations::Exception("FlushDB error: " + QString(e.what()));
     }
+}
+
+QSharedPointer<RedisClient::Connection> TreeOperations::getConnection() {
+    return m_connection;
 }

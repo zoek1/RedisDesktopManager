@@ -4,6 +4,7 @@
 #include <QSharedPointer>
 #include <QStringList>
 #include <functional>
+#include <qredisclient/connection.h>
 #include "exception.h"
 
 namespace Console {
@@ -14,7 +15,6 @@ namespace ConnectionsTree {
 
     class KeyItem;
     class NamespaceItem;
-
     class Operations
     {
         ADD_EXCEPTION
@@ -58,6 +58,8 @@ namespace ConnectionsTree {
         virtual void deleteDbNamespace(ConnectionsTree::NamespaceItem& ns) = 0;
 
         virtual void flushDb(int dbIndex, std::function<void(const QString&)> callback) = 0;
+        virtual QSharedPointer<RedisClient::Connection> getConnection() = 0;
+        virtual void copyDBKeys(int dbIndex, QSharedPointer<RedisClient::Connection> targetConnection, int targetDbIndex) = 0;
 
         virtual ~Operations() {}
 

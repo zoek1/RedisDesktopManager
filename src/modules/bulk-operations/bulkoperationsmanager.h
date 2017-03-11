@@ -31,7 +31,6 @@ namespace BulkOperations {
         Q_INVOKABLE bool hasOperation() const;
         Q_INVOKABLE bool multiConnectionOperation() const;
         Q_INVOKABLE bool clearOperation();
-        Q_INVOKABLE void runOperation(int targetConnection = -1, int targetDb = -1);
         Q_INVOKABLE void getAffectedKeys();
         Q_INVOKABLE void notifyAboutOperationSuccess();
         Q_INVOKABLE QVariant getTargetConnections();
@@ -57,6 +56,8 @@ namespace BulkOperations {
     public slots:
         void requestBulkOperation(QSharedPointer<RedisClient::Connection> connection, int dbIndex,
                                   Operation op, QRegExp keyPattern, std::function<void()> callback);
+
+        void runOperation(QSharedPointer<RedisClient::Connection> connection, int dbIndex = -1);
 
     private:                
         QSharedPointer<CurrentOperation> m_operation;

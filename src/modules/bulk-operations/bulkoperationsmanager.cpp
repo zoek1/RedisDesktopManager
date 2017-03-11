@@ -1,5 +1,6 @@
 #include "bulkoperationsmanager.h"
 #include <QDebug>
+#include <easylogging++.h>
 #include <qredisclient/connection.h>
 
 #include "bulkoperation.h"
@@ -34,24 +35,44 @@ bool BulkOperations::Manager::clearOperation()
     return true;
 }
 
-void BulkOperations::Manager::runOperation(int, int)
+void BulkOperations::Manager::runOperation(QSharedPointer<RedisClient::Connection> connection,
+                                           int dbIndex)
 {
     if (!hasOperation())
         return;
+    LOG(INFO) << "Manage Target Connection: " << connection;
+    LOG(INFO) << "multi connection operation: " << multiConnectionOperation();
 
-    m_operation->run([this](RedisClient::Response r, QString e){
-        if (!e.isEmpty()) {
-            emit error(e);
-            return;
-        }
+    if (multiConnectionOperation()) {
 
-        if (r.isErrorMessage()) {
-            emit error(QString("Bulk operation error: %1").arg(r.getValue().toString()));
-            return;
-        }
+        m_operation->run([this](RedisClient::Response r, QString e){
+            if (!e.isEmpty()) {
+                emit error(e);
+                return;
+            }
 
-        emit operationFinished();
-    });
+            if (r.isErrorMessage()) {
+                emit error(QString("Bulk operation error: %1").arg(r.getValue().toString()));
+                return;
+            }
+
+            emit operationFinished();
+        }, connection, dbIndex);
+    } else {
+        m_operation->run([this](RedisClient::Response r, QString e){
+            if (!e.isEmpty()) {
+                emit error(e);
+                return;
+            }
+
+            if (r.isErrorMessage()) {
+                emit error(QString("Bulk operation error: %1").arg(r.getValue().toString()));
+                return;
+            }
+
+            emit operationFinished();
+        });
+    }
 }
 
 void BulkOperations::Manager::getAffectedKeys()

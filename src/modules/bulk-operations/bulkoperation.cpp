@@ -1,4 +1,5 @@
 #include "bulkoperation.h"
+#include <easylogging++.h>
 #include <qredisclient/connection.h>
 
 BulkOperations::CurrentOperation::CurrentOperation(QSharedPointer<RedisClient::Connection> connection,
@@ -38,22 +39,30 @@ void BulkOperations::CurrentOperation::run(std::function<void (RedisClient::Resp
                                            QSharedPointer<RedisClient::Connection> targetConnection, int targetDbIndex)
 {
 
+    getAffectedKeys([](QVariant v, QString s) {
+
+    });
+    LOG(INFO) << "Source Connection: " << m_connection;
+    LOG(INFO) << "Source DB index: " << m_dbIndex;
+    LOG(INFO) << "Target Connection: " << targetConnection;
+    LOG(INFO) << "TargetDB index: " << targetDbIndex;
     if (multiConnectionOperation()) {
         // REFERENCE: https://redis.io/commands/migrate
         // For compatibility with all redis versions use DUMP/RESTORE
         if (targetConnection.isNull()) {
             targetConnection = m_connection;
         }
-
+        LOG(INFO) << "Operation Copy Keys: " << (m_type == BulkOperations::Manager::Operation::COPY_KEYS);
         if (m_type == BulkOperations::Manager::Operation::COPY_KEYS) {
             for (QString k: m_affectedKeys) {
+                LOG(INFO) << "Affected Key: " << k;
                 QList<QByteArray> rawDump {"DUMP", k.toUtf8()};
                 QList<QByteArray> rawRestore {"RESTORE", k.toUtf8(), "0"};
 
                 m_connection->command(rawDump, this, [&rawRestore, targetConnection, targetDbIndex, this, callback](RedisClient::Response response, QString error) {
                     rawRestore.append(response.source());
                     targetConnection->command(rawRestore, this, callback, targetDbIndex);
-                });
+                }, m_dbIndex);
 
 
             }

@@ -16,7 +16,8 @@ namespace BulkOperations {
         public:
             CurrentOperation(QSharedPointer<RedisClient::Connection> connection, int dbIndex,
                              Manager::Operation op=Manager::Operation::DELETE_KEYS,
-                             QRegExp keyPattern=QRegExp("*", Qt::CaseSensitive, QRegExp::Wildcard));
+                             QRegExp keyPattern=QRegExp("*", Qt::CaseSensitive, QRegExp::Wildcard)
+                             );
 
             void getAffectedKeys(std::function<void(QVariant, QString)> callback);
 

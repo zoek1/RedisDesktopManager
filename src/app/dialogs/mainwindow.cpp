@@ -104,7 +104,8 @@ void MainWin::initConnectionsTreeView()
                      m_keyValues.data(), &ValueEditor::ViewModel::closeDbKeys);
     QObject::connect(connections.data(), &ConnectionsManager::requestBulkOperation,
                      m_bulkOperations.data(), &BulkOperations::Manager::requestBulkOperation);
-
+    QObject::connect(connections.data(), &ConnectionsManager::runOperation,
+                     m_bulkOperations.data(), &BulkOperations::Manager::runOperation);
     QObject::connect(connections.data(), &ConnectionsManager::editConnection,
                      this, &MainWin::OnEditConnectionClick);
 

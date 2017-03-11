@@ -8,6 +8,7 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QFutureWatcher>
+#include <easylogging++.h>
 
 #include "namespaceitem.h"
 #include "keyitem.h"
@@ -25,7 +26,7 @@ DatabaseItem::DatabaseItem(unsigned int index, int keysCount,
     : AbstractNamespaceItem(model, parent, operations),
       m_index(index),
       m_keysCount(keysCount),
-      m_locked(false),                  
+      m_locked(false),
       m_parentView(nullptr)
 {        
     m_renderingSettings.nsSeparator = operations->getNamespaceSeparator();
@@ -78,7 +79,7 @@ QSharedPointer<QMenu> DatabaseItem::getContextMenu(TreeItem::ParentView& treeVie
 {
     m_parentView = &treeView;
     QSharedPointer<QMenu> menu(new QMenu());
-    std::function<void()> newKeyItemCallback = [this, &treeView]()
+    auto newKeyItemCallback = [this, &treeView]()
     {
         m_operations->openNewKeyDialog(m_index, [this, &treeView]()
         {
@@ -95,6 +96,46 @@ QSharedPointer<QMenu> DatabaseItem::getContextMenu(TreeItem::ParentView& treeVie
  QKeySequence("Ctrl+N")
 #endif
     ));
+
+    menu->addSeparator();
+    menu->addAction(createMenuAction(":/images/filter.png", "Copy keys", menu.data(), this,
+                                     [this, &treeView]() {
+        setDatabaseClipboard(QSharedPointer<DatabaseItem>(this));
+
+        m_operations->getDatabases([this](QMap<int, int> dbs) {
+            //this->m_operations->notifyDbWasUnloaded();
+        });
+
+    },
+                #ifdef Q_OS_MACX
+                 QKeySequence("Meta+C")
+                #else
+                 QKeySequence("Ctrl+C")
+                #endif
+                    ));
+
+        menu->addAction(createMenuAction(":/images/filter.png", "Paste keys", menu.data(), this,
+                                     [this, &treeView]() {
+
+        QSharedPointer<DatabaseItem> source = getDatabaseClipboard();
+        source->m_operations->getDatabaseKeys(source->m_index, [](const RedisClient::Connection::RawKeysList& rawKeys, const QString& err) {
+                                                          LOG(WARNING) << "Keys in DB: " << rawKeys;
+        });
+
+
+        //QMessageBox msgBox;
+        //msgBox.setText("Desconectando");
+        //msgBox.exec();
+        //LOG(INFO) << "Database source: " << source;
+        source->m_operations->copyDBKeys(source->m_index, m_operations->getConnection(), m_index);
+    },
+                #ifdef Q_OS_MACX
+                 QKeySequence("Meta+V")
+                #else
+                 QKeySequence("Ctrl+V")
+                #endif
+                    ));
+
     menu->addSeparator();
 
     if (m_renderingSettings.filter.isEmpty()) {
@@ -220,4 +261,25 @@ void DatabaseItem::resetFilter()
 {
     m_renderingSettings.filter = QRegExp();
     loadKeys();
+}
+
+void DatabaseItem::migrateKeys(QSharedPointer<DatabaseItem> destiny) {
+    QSharedPointer<DatabaseItem> source = DatabaseItem::getDatabaseClipboard();
+
+    if (source.isNull() == false) {
+        //source->m_operations->getDatabaseKeys(source->getIndex(),);
+    }
+
+}
+
+QSharedPointer<DatabaseItem> DatabaseItem::copyInstanceKeys = QSharedPointer<DatabaseItem>();
+
+void DatabaseItem::setDatabaseClipboard(QSharedPointer<DatabaseItem> db)
+{
+    DatabaseItem::copyInstanceKeys = db;
+}
+
+QSharedPointer<DatabaseItem> DatabaseItem::getDatabaseClipboard()
+{
+    return DatabaseItem::copyInstanceKeys;
 }
